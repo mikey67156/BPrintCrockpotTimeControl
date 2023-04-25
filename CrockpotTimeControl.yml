@@ -1,13 +1,14 @@
 blueprint:
   name: Crockpot Time Control
-  description: Automatically start and stop a crockpot connected to a Zigbee smart outlet switch based on dinner and cook times.
+  description: Automatically start and stop a crockpot connected to a Zigbee smart
+    outlet switch based on dinner and cook times.
   domain: automation
-  source_url: https://github.com/yourusername/blueprints/blob/main/crockpot_time_control.yaml # Replace with the URL to your blueprint file
+  source_url: https://github.com/mikey67156/BPrintCrockpotTimeControl/blob/main/CrockpotTimeControl.yml
   input:
     calculation_time:
       name: Calculation Time
       description: Time of day to calculate crockpot start time
-      default: "00:01:00"
+      default: 00:01:00
       selector:
         time: {}
     dinner_time_input:
@@ -16,51 +17,54 @@ blueprint:
       selector:
         entity:
           domain: input_datetime
+          multiple: false
     cook_time_input:
       name: Cook Time Input
       description: Input Number entity for setting the cook time in hours
       selector:
         entity:
           domain: input_number
+          multiple: false
     zigbee_switch:
       name: Zigbee Smart Outlet Switch
       description: Zigbee smart outlet switch to control the crockpot
       selector:
         entity:
           domain: switch
+          multiple: false
     timer_entity:
       name: Timer Entity
       description: Timer entity used to control the crockpot cooking time
       selector:
         entity:
           domain: timer
-
+          multiple: false
 trigger:
   - platform: time
-    at: !input "calculation_time"
+    at: !input calculation_time
 action:
   - variables:
-      dinner_time: "{{ states((input_datetime.dinner_time)) }}"
-      cook_time_hours: "{{ states((input_number.cook_time)) | float }}"
+      dinner_time: "{{ states(input_datetime.dinner_time) }}"
+      cook_time_hours: "{{ states(input_number.cook_time) | float }}"
       cook_time_seconds: "{{ cook_time_hours * 3600 }}"
       start_time: "{{ as_timestamp(strptime(dinner_time, '%Y-%m-%d %H:%M:%S')) - cook_time_seconds }}"
       zigbee_switch: !input "zigbee_switch"
       timer_entity: !input "timer_entity"
   - service: timer.start
     target:
-      entity_id: "{{ timer_entity }}"
+      entity_id: '{{ timer_entity }}'
     data:
-      duration: "{{ cook_time_seconds | int }}"
+      duration: '{{ cook_time_seconds | int }}'
   - condition: template
-    value_template: "{{ now().timestamp() >= start_time }}"
+    value_template: '{{ now().timestamp() >= start_time }}'
   - service: switch.turn_on
     target:
-      entity_id: "{{ zigbee_switch }}"
+      entity_id: '{{ zigbee_switch }}'
   - wait_for_trigger:
-      - platform: event
-        event_type: timer.finished
-        event_data:
-          entity_id: "{{ timer_entity }}"
+    - platform: event
+      event_type: timer.finished
+      event_data:
+        entity_id: '{{ timer_entity }}'
   - service: switch.turn_off
     target:
-      entity_id: "{{ zigbee_switch }}"
+      entity_id: '{{ zigbee_switch }}'
