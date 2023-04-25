@@ -1,0 +1,66 @@
+blueprint:
+  name: Crockpot Time Control
+  description: Automatically start and stop a crockpot connected to a Zigbee smart outlet switch based on dinner and cook times.
+  domain: automation
+  source_url: https://github.com/yourusername/blueprints/blob/main/crockpot_time_control.yaml # Replace with the URL to your blueprint file
+  input:
+    calculation_time:
+      name: Calculation Time
+      description: Time of day to calculate crockpot start time
+      default: "00:01:00"
+      selector:
+        time: {}
+    dinner_time_input:
+      name: Dinner Time Input
+      description: Input Datetime entity for setting the desired dinner time
+      selector:
+        entity:
+          domain: input_datetime
+    cook_time_input:
+      name: Cook Time Input
+      description: Input Number entity for setting the cook time in hours
+      selector:
+        entity:
+          domain: input_number
+    zigbee_switch:
+      name: Zigbee Smart Outlet Switch
+      description: Zigbee smart outlet switch to control the crockpot
+      selector:
+        entity:
+          domain: switch
+    timer_entity:
+      name: Timer Entity
+      description: Timer entity used to control the crockpot cooking time
+      selector:
+        entity:
+          domain: timer
+
+trigger:
+  - platform: time
+    at: !input "calculation_time"
+action:
+  - variables:
+      dinner_time: "{{ states((!input 'dinner_time_input')) }}"
+      cook_time_hours: "{{ states((!input 'cook_time_input')) | float }}"
+      cook_time_seconds: "{{ cook_time_hours * 3600 }}"
+      start_time: "{{ as_timestamp(strptime(dinner_time, '%Y-%m-%d %H:%M:%S')) - cook_time_seconds }}"
+      zigbee_switch: !input "zigbee_switch"
+      timer_entity: !input "timer_entity"
+  - service: timer.start
+    target:
+      entity_id: "{{ timer_entity }}"
+    data:
+      duration: "{{ cook_time_seconds | int }}"
+  - condition: template
+    value_template: "{{ now().timestamp() >= start_time }}"
+  - service: switch.turn_on
+    target:
+      entity_id: "{{ zigbee_switch }}"
+  - wait_for_trigger:
+      - platform: event
+        event_type: timer.finished
+        event_data:
+          entity_id: "{{ timer_entity }}"
+  - service: switch.turn_off
+    target:
+      entity_id: "{{ zigbee_switch }}"
