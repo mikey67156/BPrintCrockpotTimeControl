@@ -41,7 +41,7 @@ trigger:
 action:
   - variables:
       dinner_time: "{{ states((input_datetime.dinner_time)) }}"
-      cook_time_hours: "{{ states((!input 'cook_time_input')) | float }}"
+      cook_time_hours: "{{ states((input_number.cook_time)) | float }}"
       cook_time_seconds: "{{ cook_time_hours * 3600 }}"
       start_time: "{{ as_timestamp(strptime(dinner_time, '%Y-%m-%d %H:%M:%S')) - cook_time_seconds }}"
       zigbee_switch: !input "zigbee_switch"
